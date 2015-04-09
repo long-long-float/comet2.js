@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>COMET II Virtual Machine</title>
+  <meta charset="utf-8">
+</head>
+<body>
+  <h4>Source Code</h4><textarea id="source-code" cols=40 rows=5>
+  </textarea>
+  <button onclick="run()">run!</button>
+  <h4>input</h4><textarea id="input" cols=40 rows=5></textarea>
+  <button onclick="resume()">resume</button>
+  <h4>output</h4><textarea id="output" cols=40 rows=5></textarea>
+  <h4>register</h4>
+  <table border=1>
+    <tbody>
+      <tr id="register-names">
+      </tr>
+      <tr id="registers">
+      </tr>
+    <tbody>
+  </table>
+  <h4>flag</h4>
+  <table border=1>
+    <tbody>
+      <tr>
+        <td>OF</td><td>SF</td><td>ZF</td>
+      </tr>
+      <tr id="flags">
+        <td></td><td></td><td></td>
+      </tr>
+    <tbody>
+  </table>
+  <h4>labels</h4>
+  <table border=1>
+    <tbody id="labels">
+      <tr>
+        <td>name</td><td>address</td><td>real</td>
+      </tr>
+    <tbody>
+  </table>
+  <script src="casl.js"></script>
+  <script src="comet.js"></script>
+  <script src="jquery-1.11.1.min.js"></script>
+  <script>
+    var vm;
+    var labels;
+
+    var $output = $("#output");
+    var print = function(str) {
+      $output.val($output.val() + str);
+      $output.scrollTop($output[0].scrollHeight);
+    }
+    var println = function(str) {
+      print(str + "\n");
+    };
+
+    function executeAsync() {
+      var timer = setInterval(function() {
+        for(var i = 0 ; i < 200 ; i++) {
+          if(vm.executeStepwise()) {
+            clearInterval(timer);
+            break;
+          }
+        }
+        refreshState();
+      }, 1);
+    }
+
+    function run() {
+      $output.val("");
+
+      var assembler = new CaslAssembler();
+      print('assemble... ');
+      var ast = assembler.parse($("#source-code").val());
+      ast = assembler.expandMacro(ast);
+      console.log(ast);
+      var program = assembler.assemble(ast);
+      println("done");
+      labels = program.labels;
+      console.log(program);
+
+      vm = new CometVM({ outputOperation: true });
+      vm.oninput = function() {
+        return $("#input").val();
+      };
+      vm.onoutput = function(data) {
+        var str = '';
+        for(var i = 0 ; i < data.length ; i++) {
+          str += String.fromCharCode(data[i]);
+        }
+        println(str);
+      };
+      vm.onpause = function() {
+        println('pause');
+        refreshState();
+      };
+      vm.onfinish = function() {
+        println('finish executing');
+        refreshState();
+      };
+      vm.load(program.program, 0);
+      vm.PR = program.startAddr;
+      executeAsync();
+    }
+
+    function resume() {
+      if(!vm || vm.getState() !== CometVM.State.paused) return;
+      println('resume');
+      executeAsync();
+    }
+
+    function refreshState() {
+      $("#register-names").children().remove();
+      $("#registers").children().remove();
+      var appendRegister = function(name, val) {
+        $("#register-names").append($("<td>").text(name));
+        $("#registers").append($("<td>").text(val));
+      };
+      for(var i = 0;i < vm.GR.length;i++) {
+        appendRegister("GR" + i, vm.GR[i]);
+      }
+      appendRegister("SP", vm.SP);
+      appendRegister("PR", vm.PR);
+
+      $("#flags").children().each(function(i) {
+        $(this).text((vm.FR << i & 0x4) && 1);
+      });
+
+      $("#labels").children().remove(".label");
+      for(var i = 0;i < labels.length;i++) {
+        var address = labels[i].address;
+        $("#labels")
+          .append($("<tr>").addClass("label")
+            .append($("<td>").text(labels[i].name))
+            .append($("<td>").text(address))
+            .append($("<td>").text(vm.memory[address]))
+          );
+      }
+    }
+  </script>
+</body>
+</html>

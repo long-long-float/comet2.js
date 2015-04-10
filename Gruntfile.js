@@ -27,10 +27,6 @@ module.exports = function(grunt) {
       }
     },
     concat: {
-      parser: {
-        src: ['grammer/intro.js', 'grammer/outro.js', 'grammer/parser.src.pegjs'],
-        dest: 'grammer/parser.pegjs'
-      },
       assembler: {
         options: {
           banner: '(function(){',
@@ -49,7 +45,7 @@ module.exports = function(grunt) {
         tasks: ['build-vm']
       },
       pegjs: {
-        files: ['grammer/parser.src.pegjs', 'grammer/tokens.coffee'],
+        files: ['grammer/parser.pegjs', 'grammer/tokens.coffee'],
         tasks: ['build-parser']
       },
       assembler: {
@@ -76,7 +72,7 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-notify');
 
   grunt.registerTask('test', ['qunit']);
-  grunt.registerTask('build-parser', ['coffee', 'concat:parser', 'peg']);
+  grunt.registerTask('build-parser', ['coffee', 'peg']);
   grunt.registerTask('build-vm', ['sweetjs', 'qunit']);
   grunt.registerTask('build-assembler', ['build-parser', 'concat:assembler']);
   grunt.registerTask('default', ['build-vm', 'build-parser', 'build-assembler']);

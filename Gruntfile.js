@@ -6,13 +6,14 @@ module.exports = function(grunt) {
     },
     sweetjs: {
       comet: {
-        src: 'comet.sjs'
+        src: 'src/comet.sjs',
+        dest: 'dest/comet.js'
       }
     },
     peg: {
       comet: {
-        src: 'grammer/parser.pegjs',
-        dest: 'parser.js',
+        src: 'src/grammer/parser.pegjs',
+        dest: 'dest/parser.js',
         options: { exportVar: 'PEG' }
       }
     },
@@ -22,7 +23,7 @@ module.exports = function(grunt) {
       },
       compile: {
         files: {
-          'grammer/tokens.js': 'grammer/tokens.coffee'
+          'dest/tokens.js': 'src/grammer/tokens.coffee'
         }
       }
     },
@@ -32,13 +33,13 @@ module.exports = function(grunt) {
           banner: '(function(){',
           footer: '})();'
         },
-        src: ['ext.js', 'grammer/tokens.js', 'parser.js', 'casl.src.js'],
-        dest: 'casl.js'
+        src: ['dest/ext.js', 'dest/tokens.js', 'dest/parser.js', 'src/casl.src.js'],
+        dest: 'dest/casl.js'
       }
     },
     bower_concat: {
       all: {
-        dest: 'ext.js',
+        dest: 'dest/ext.js',
         exclude: [
           'jquery'
         ]
@@ -49,15 +50,15 @@ module.exports = function(grunt) {
         livereload: true
       },
       sweetjs: {
-        files: ['comet.sjs'],
+        files: ['src/comet.sjs'],
         tasks: ['build-vm']
       },
       pegjs: {
-        files: ['grammer/parser.pegjs', 'grammer/tokens.coffee'],
+        files: ['src/grammer/parser.pegjs', 'src/grammer/tokens.coffee'],
         tasks: ['build-parser']
       },
       assembler: {
-        files: ['casl.src.js', 'grammer/tokens.coffee'],
+        files: ['src/casl.src.js', 'src/grammer/tokens.coffee'],
         tasks: ['build-assembler']
       }
     },

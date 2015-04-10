@@ -1,10 +1,4 @@
-comet.js
-
-casl.js
-parser.js
-grammer/parser.pegjs
-grammer/tokens.js
-ext.js
+dest
 
 node_modules
 bower_components

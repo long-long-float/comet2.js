@@ -32,7 +32,11 @@ module.exports = function(grunt) {
         dest: 'grammer/parser.pegjs'
       },
       assembler: {
-        src: ['intro.js', 'underscore-min.js', 'grammer/tokens.js', 'parser.js', 'casl.src.js', 'outro.js'],
+        options: {
+          banner: '(function(){',
+          footer: '})();'
+        },
+        src: ['underscore-min.js', 'grammer/tokens.js', 'parser.js', 'casl.src.js'],
         dest: 'casl.js'
       }
     },

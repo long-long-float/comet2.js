@@ -32,8 +32,16 @@ module.exports = function(grunt) {
           banner: '(function(){',
           footer: '})();'
         },
-        src: ['underscore-min.js', 'grammer/tokens.js', 'parser.js', 'casl.src.js'],
+        src: ['ext.js', 'grammer/tokens.js', 'parser.js', 'casl.src.js'],
         dest: 'casl.js'
+      }
+    },
+    bower_concat: {
+      all: {
+        dest: 'ext.js',
+        exclude: [
+          'jquery'
+        ]
       }
     },
     watch: {
@@ -70,10 +78,11 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-contrib-coffee');
   grunt.loadNpmTasks('grunt-notify');
+  grunt.loadNpmTasks('grunt-bower-concat');
 
   grunt.registerTask('test', ['qunit']);
   grunt.registerTask('build-parser', ['coffee', 'peg']);
   grunt.registerTask('build-vm', ['sweetjs', 'qunit']);
   grunt.registerTask('build-assembler', ['build-parser', 'concat:assembler']);
-  grunt.registerTask('default', ['build-vm', 'build-parser', 'build-assembler']);
+  grunt.registerTask('default', ['bower_concat', 'build-vm', 'build-parser', 'build-assembler']);
 };

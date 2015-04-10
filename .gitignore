@@ -4,5 +4,7 @@ casl.js
 parser.js
 grammer/parser.pegjs
 grammer/tokens.js
+ext.js
 
 node_modules
+bower_components

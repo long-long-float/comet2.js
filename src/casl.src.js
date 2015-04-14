@@ -272,7 +272,7 @@ _CaslAssembler = function(opts) {
   _CaslAssembler.assemble = function(sourceCode) {
     var assembler = new CaslAssembler;
     var ast = assembler.parse(sourceCode);
-    ast = assemble.expadedAst(ast);
+    ast = assembler.expandMacro(ast);
     return assembler.assemble(ast);
   };
 

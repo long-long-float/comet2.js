@@ -269,13 +269,13 @@ _CaslAssembler = function(opts) {
     };
   };
 
-  _CaslAssembler.assemble = function(sourceCode) {
-    var assembler = new CaslAssembler;
-    var ast = assembler.parse(sourceCode);
-    ast = assembler.expandMacro(ast);
-    return assembler.assemble(ast);
-  };
+};
 
+_CaslAssembler.assemble = function(sourceCode) {
+  var assembler = new CaslAssembler;
+  var ast = assembler.parse(sourceCode);
+  ast = assembler.expandMacro(ast);
+  return assembler.assemble(ast);
 };
 
 CaslAssembler = _CaslAssembler;

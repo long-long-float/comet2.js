@@ -41,7 +41,7 @@ module.exports = function(grunt) {
       all: {
         dest: 'dest/ext.js',
         exclude: [
-          'jquery'
+          'jquery', 'qunit'
         ]
       }
     },

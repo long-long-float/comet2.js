@@ -1,4 +1,7 @@
-dest
+dest/ext.js
+dest/ext.min.js
+dest/parser.js
+dest/tokens.js
 
 node_modules
 bower_components

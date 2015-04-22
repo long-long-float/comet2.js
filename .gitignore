@@ -4,4 +4,3 @@ dest/parser.js
 dest/tokens.js
 
 node_modules
-bower_components

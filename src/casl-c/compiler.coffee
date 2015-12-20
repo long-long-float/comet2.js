@@ -8,7 +8,10 @@ class Operation
     tokens.push @args.join(",")
     tokens.join(" ")
 
+op = -> new Operation(arguments...)
+
 class CaslCCompiler
+
   @compile: (src) ->
     compiler = new CaslCCompiler()
 
@@ -23,11 +26,11 @@ class CaslCCompiler
         when 'def_fun'
           fasm = compiler.compileBlock(node.block)
           if node.name == 'main'
-            fasm.unshift new Operation('START', [])
+            fasm.unshift op('START', [])
 
           fasm[0].label = node.name.toUpperCase()
 
-          fasm.push new Operation('RET', [])
+          fasm.push op('RET', [])
 
           asm = asm.concat(fasm)
 
@@ -37,14 +40,21 @@ class CaslCCompiler
 
   constructor: ->
     @constants = []
+    @envStack = []
 
   addConstant: (value) ->
     label = "label#{@constants.length}".toUpperCase()
-    @constants.push new Operation('DC', [value], label)
+    @constants.push op('DC', [value], label)
     label
 
   compileBlock: (block) ->
-    _.flatten(block.stmts.map((stmt) => @compileAST(stmt)))
+    @envStack.unshift([])
+    ret = _.flatten(block.stmts.map((stmt) => @compileAST(stmt)))
+    @envStack.shift()
+    ret
+
+  findVar: (name) ->
+    _.find(@envStack[0], (v) -> v.name == name)
 
   compileAST: (ast) ->
     switch ast.type
@@ -57,4 +67,23 @@ class CaslCCompiler
             nakedStr = str.slice(1, str.length - 1)
             strLabel    = @addConstant("'#{nakedStr}'")
             strLenLabel = @addConstant(nakedStr.length)
-            [new Operation('OUT', [strLabel, strLenLabel])]
+            [op('OUT', [strLabel, strLenLabel])]
+
+      when 'def_var'
+        variable =
+          type: ast.var_type
+          name: ast.name
+          label: @addConstant(ast.init_value?.value || 0) # initialize with NULL
+
+        @envStack[0].push variable
+
+        []
+      when 'unary_op_b'
+        label = @findVar(ast.right).label
+        switch ast.op
+          when '++'
+            [
+              op('LD',  ['GR1', label])
+              op('LAD', ['GR1', 1, 'GR1'])
+              op('ST',  ['GR1', label])
+            ]

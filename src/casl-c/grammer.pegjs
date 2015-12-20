@@ -73,7 +73,7 @@ def_fun
 
 def_var
   = type:type _ name:identifier _ init_value:("=" _  expression)? ";"
-    { return { type: "def_var", var_type: type, name: name, init_value: init_value[2] }; }
+    { return { type: "def_var", var_type: type, name: name, init_value: init_value && init_value[2] }; }
 
 if_stmt
   = "if" _ "(" _ cond:expression _ ")" _ block:block

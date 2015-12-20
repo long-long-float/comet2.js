@@ -1,10 +1,10 @@
 {
   function node(type, value) {
-  	return { type: type, value: value };
+    return { type: type, value: value };
   }
 
   function unary_op_b(op, right) {
-  	return { type: "unary_op_b", op: op, right: right};
+    return { type: "unary_op_b", op: op, right: right};
   }
 
   function binary_op(left, rest) {
@@ -27,7 +27,7 @@
   }
 
   function is_array(obj) {
-  	return Object.prototype.toString.call(obj) == "[object Array]";
+    return Object.prototype.toString.call(obj) == "[object Array]";
   }
 
   function flatten(ary) {
@@ -35,7 +35,7 @@
       return ary;
     }
     else {
-	  return Array.prototype.concat.apply([], ary.map(flatten));
+    return Array.prototype.concat.apply([], ary.map(flatten));
     }
   }
 
@@ -68,7 +68,7 @@ def_fun
 
 def_var
   = type:type _ name:identifier _ init_value:("=" _  expression)? ";"
-     return { type: "def_var", var_type: type, name: name, init_value: init_value[2] }; }
+    { return { type: "def_var", var_type: type, name: name, init_value: init_value[2] }; }
 
 if_stmt
   = "if" _ "(" _ cond:expression _ ")" _ block:block
@@ -80,7 +80,7 @@ while_stmt
 
 expression
   = left:term0 rest:(_ ("<" / ">") _ term0)+
-  	{ return binary_op(left, rest); }
+    { return binary_op(left, rest); }
   / term:term0
     { return flatten(term)[0]; }
 
@@ -99,18 +99,18 @@ factor
   = "(" _ expr:expression _ ")"
     { return expr; }
   / name:identifier _ "(" _ fst_arg:expression? rest_args:(_ "," _ expression)* _ ")"
-  	{ return { type: "call_function", fst_arg: fst_arg, rest_args: rest_args }; }
+    { return { type: "call_function", fst_arg: fst_arg, rest_args: rest_args }; }
   / integer
   / string
   / identifier
 
 integer "integer"
   = [0-9]+
-  	{ return node("integer", parseInt(text(), 10)); }
+    { return node("integer", parseInt(text(), 10)); }
 
 string
   = "\"" [^"]* "\""
-  	{ return node("string", text()); }
+    { return node("string", text()); }
 
 block
   = "{" _ stmts:(statement _ ) * _ "}"

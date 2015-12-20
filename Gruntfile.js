@@ -19,7 +19,7 @@ module.exports = function(grunt) {
       },
       compiler: {
         src: 'src/casl-c/grammer.pegjs',
-        dest: 'dest/casl-c/grammer.pegjs',
+        dest: 'dest/casl-c/grammer.js',
         options: { exportVar: 'CaslCParser' }
       }
     },
@@ -30,6 +30,11 @@ module.exports = function(grunt) {
       casl: {
         files: {
           'dest/tokens.js': 'src/grammer/tokens.coffee'
+        }
+      },
+      compiler: {
+        files: {
+          'dest/casl-c/compiler.js': 'src/casl-c/compiler.coffee'
         }
       }
     },
@@ -69,6 +74,10 @@ module.exports = function(grunt) {
       casl: {
         files: ['src/casl.src.js', 'src/grammer/parser.pegjs', 'src/grammer/tokens.coffee'],
         tasks: ['build-casl']
+      },
+      compiler: {
+        files: ['src/casl-c/*'],
+        tasks: ['build-compiler']
       }
     },
     connect: {
@@ -96,7 +105,7 @@ module.exports = function(grunt) {
   grunt.registerTask('build-comet', ['sweetjs', 'qunit']);
   grunt.registerTask('build-casl', ['coffee:casl', 'peg:casl', 'concat:casl']);
 
-  grunt.registerTask('build-compiler', ['peg:compiler']);
+  grunt.registerTask('build-compiler', ['peg:compiler', 'coffee:compiler']);
 
   grunt.registerTask('build-ext', ['bower_concat', 'uglify:bower'])
 

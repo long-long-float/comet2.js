@@ -11,10 +11,16 @@ module.exports = function(grunt) {
       }
     },
     peg: {
+      options: { cache: true },
       casl: {
         src: 'src/grammer/parser.pegjs',
         dest: 'dest/parser.js',
-        options: { cache: true, exportVar: 'PEG' }
+        options: { exportVar: 'PEG' }
+      },
+      compiler: {
+        src: 'src/casl-c/grammer.pegjs',
+        dest: 'dest/casl-c/grammer.pegjs',
+        options: { exportVar: 'CaslCParser' }
       }
     },
     coffee : {
@@ -88,7 +94,9 @@ module.exports = function(grunt) {
   grunt.registerTask('test', ['qunit']);
 
   grunt.registerTask('build-comet', ['sweetjs', 'qunit']);
-  grunt.registerTask('build-casl', ['coffee:casl', 'peg', 'concat:casl']);
+  grunt.registerTask('build-casl', ['coffee:casl', 'peg:casl', 'concat:casl']);
+
+  grunt.registerTask('build-compiler', ['peg:compiler']);
 
   grunt.registerTask('build-ext', ['bower_concat', 'uglify:bower'])
 

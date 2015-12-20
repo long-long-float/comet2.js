@@ -30,6 +30,11 @@
     return Object.prototype.toString.call(obj) == "[object Array]";
   }
 
+  function mkargs(fst_arg, rest_args) {
+    if(fst_arg === null) return [];
+    else { return [fst_arg].concat(rest_args); }
+  }
+
   function flatten(ary) {
     if(!is_array(ary)) {
       return ary;
@@ -50,7 +55,7 @@
 
 program
   = program:(top_statement _ )*
-    { return filter(program, []); }
+    { return filter(flatten(program), ["\n"]); }
 
 top_statement
   = def_fun
@@ -64,7 +69,7 @@ statement
 
 def_fun
   = type:type _ name:identifier _ "(" _  fst_arg:def_arg? rest_args:(_ "," _ def_arg)* _ ")" _ block:block
-    { return { type: "def_fun", out_type:type, name: name, fst_arg: fst_arg, rest_args: rest_args, block: block }; }
+    { return { type: "def_fun", out_type:type, name: name, args: mkargs(fst_arg, rest_args), block: block }; }
 
 def_var
   = type:type _ name:identifier _ init_value:("=" _  expression)? ";"
@@ -99,7 +104,7 @@ factor
   = "(" _ expr:expression _ ")"
     { return expr; }
   / name:identifier _ "(" _ fst_arg:expression? rest_args:(_ "," _ expression)* _ ")"
-    { return { type: "call_function", fst_arg: fst_arg, rest_args: rest_args }; }
+    { return { type: "call_function", name: name, args: mkargs(fst_arg, rest_args) }; }
   / integer
   / string
   / identifier

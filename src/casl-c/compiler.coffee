@@ -53,8 +53,12 @@ class CaslCCompiler
     @envStack.shift()
     ret
 
-  findVar: (name) ->
-    _.find(@envStack[0], (v) -> v.name == name)
+  findLocalVar: (name) ->
+    for v, i in @envStack[0]
+      if v.name == name
+        return "GR#{i+3}"
+
+    throw new Error("#{name} is not defined")
 
   compileAST: (ast) ->
     switch ast.type
@@ -73,17 +77,20 @@ class CaslCCompiler
         variable =
           type: ast.var_type
           name: ast.name
-          label: @addConstant(ast.init_value?.value || 0) # initialize with NULL
 
         @envStack[0].push variable
 
-        []
+        init_value = ast.init_value
+        if init_value?
+          [
+            op('LAD', [@findLocalVar(variable.name), init_value.value])
+          ]
+        else
+          []
       when 'unary_op_b'
-        label = @findVar(ast.right).label
+        gr = @findLocalVar(ast.right)
         switch ast.op
           when '++'
             [
-              op('LD',  ['GR1', label])
-              op('LAD', ['GR1', 1, 'GR1'])
-              op('ST',  ['GR1', label])
+              op('LAD', [gr, 1, gr])
             ]

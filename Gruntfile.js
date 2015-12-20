@@ -11,24 +11,24 @@ module.exports = function(grunt) {
       }
     },
     peg: {
-      comet: {
+      casl: {
         src: 'src/grammer/parser.pegjs',
         dest: 'dest/parser.js',
-        options: { exportVar: 'PEG' }
+        options: { cache: true, exportVar: 'PEG' }
       }
     },
     coffee : {
       options: {
         bare: true
       },
-      compile: {
+      casl: {
         files: {
           'dest/tokens.js': 'src/grammer/tokens.coffee'
         }
       }
     },
     concat: {
-      assembler: {
+      casl: {
         options: {
           banner: '(function(){',
           footer: '})();'
@@ -56,17 +56,13 @@ module.exports = function(grunt) {
       options: {
         livereload: true
       },
-      sweetjs: {
+      comet: {
         files: ['src/comet.sjs'],
-        tasks: ['build-vm']
+        tasks: ['build-comet']
       },
-      pegjs: {
-        files: ['src/grammer/parser.pegjs', 'src/grammer/tokens.coffee'],
-        tasks: ['build-parser']
-      },
-      assembler: {
-        files: ['src/casl.src.js', 'src/grammer/tokens.coffee'],
-        tasks: ['build-assembler']
+      casl: {
+        files: ['src/casl.src.js', 'src/grammer/parser.pegjs', 'src/grammer/tokens.coffee'],
+        tasks: ['build-casl']
       }
     },
     connect: {
@@ -90,8 +86,11 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-uglify');
 
   grunt.registerTask('test', ['qunit']);
-  grunt.registerTask('build-parser', ['coffee', 'peg']);
-  grunt.registerTask('build-vm', ['sweetjs', 'qunit']);
-  grunt.registerTask('build-assembler', ['bower_concat', 'uglify:bower', 'build-parser', 'concat:assembler']);
-  grunt.registerTask('default', ['build-vm', 'build-parser', 'build-assembler']);
+
+  grunt.registerTask('build-comet', ['sweetjs', 'qunit']);
+  grunt.registerTask('build-casl', ['coffee:casl', 'peg', 'concat:casl']);
+
+  grunt.registerTask('build-ext', ['bower_concat', 'uglify:bower'])
+
+  grunt.registerTask('default', ['build-comet', 'build-casl', 'build-ext']);
 };

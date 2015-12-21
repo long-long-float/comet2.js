@@ -148,6 +148,7 @@ def_arg
 
 type
   = id:identifier
+    & { return ["return"].indexOf(id.value) === -1; }
     { return { type: "type", value: id }; }
 
 identifier

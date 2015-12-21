@@ -42,9 +42,12 @@ class CaslCCompiler
           @asm[firstOpIndex].label = node.name.toUpperCase()
           @addOperation op('RET', [])
 
-    console.log @asm.concat(@constants)
+    @addOperations @constants
+    @addOperation op('END', [])
 
-    @asm.concat(@constants).map((op) -> op.toString()).join("\n")
+    console.log @asm
+
+    @asm.map((op) -> op.toString()).join("\n")
 
   addConstant: (value) ->
     label = @addLabel()

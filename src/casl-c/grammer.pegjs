@@ -145,10 +145,12 @@ def_arg
     { return { type: "def_arg", type: type, name: name }; }
 
 type
-  = identifier
+  = id:identifier
+    { return { type: "type", value: id }; }
 
 identifier
-  = [a-zA-Z]+ { return text(); }
+  = [a-zA-Z]+
+    { return { type: "identifier", value: text() }; }
 
 _ "whitespace"
   = [ \t\n\r]*

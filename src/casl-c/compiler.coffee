@@ -48,7 +48,7 @@ class CaslCCompiler
           @compileBlock(node.block)
           @envStack.shift()
 
-          @asm[firstOpIndex].label = node.name.toUpperCase()
+          @asm[firstOpIndex].label = node.name.value.toUpperCase()
 
           @addOperation op('RET', [])
 
@@ -70,17 +70,17 @@ class CaslCCompiler
   compileBlock: (block) ->
     block.stmts.map((stmt) => @compileAST(stmt))
 
-  addLocalVar: (type, name) ->
+  addLocalVar: (type, id) ->
     @envStack[0].push
       type: type
-      name: name
+      name: id.value
 
-  findLocalVar: (name) ->
+  findLocalVar: (id) ->
     for v, i in @envStack[0]
-      if v.name == name
+      if v.name == id.value
         return "GR#{i+3}"
 
-    throw new Error("#{name} is not defined")
+    throw new Error("#{id.value} is not defined")
 
   addOperation: (opr) ->
     if @nextLabel
@@ -98,8 +98,13 @@ class CaslCCompiler
   compileBinaryOpWithJump: (biop, tailLabel) ->
     switch biop.op
       when '<'
+        right = if biop.right.type == 'identifier'
+            @findLocalVar(biop.right)
+          else
+            "=#{biop.right.value}"
+
         @addOperations [
-          op('CPA', [@findLocalVar(biop.left), "=#{biop.right.value}"])
+          op('CPA', [@findLocalVar(biop.left), right])
           op('JPL', [tailLabel])
           op('JZE', [tailLabel])
         ]
@@ -107,7 +112,7 @@ class CaslCCompiler
   compileAST: (ast) ->
     switch ast.type
       when 'call_function'
-        switch ast.name
+        switch ast.name.value
           when 'puts'
             throw new Error("number of arguments of puts must be 1") unless ast.args.length == 1
 

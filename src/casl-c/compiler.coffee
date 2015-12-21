@@ -115,6 +115,22 @@ class CaslCCompiler
 
         @setNextLabel(tailLabel)
 
+      when 'for_stmt'
+        @compileAST(ast.init)
+
+        headLabel = @addLabel()
+        tailLabel = @addLabel()
+        firstOpIndex = @asm.length
+
+        @compileBinaryOpWithJump(ast.condition, tailLabel)
+        @asm[firstOpIndex].label = headLabel
+
+        @compileBlock(ast.block, false)
+        @compileAST(ast.update)
+        @addOperation op('JUMP', [headLabel])
+
+        @setNextLabel(tailLabel)
+
       when 'def_var'
         variable =
           type: ast.var_type

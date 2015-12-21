@@ -65,6 +65,7 @@ statement
   = def_var
   / if_stmt
   / while_stmt
+  / for_stmt
   / expression _ ";"
 
 def_fun
@@ -82,6 +83,10 @@ if_stmt
 while_stmt
   = "while" _ "(" _ cond:expression _ ")" _ block:block
     { return { type: "while_stmt", condition: cond, block: block }; }
+
+for_stmt
+  = "for" _ "(" _ init:expression _ ";" _ cond:expression _ ";" _ update:expression _ ")" _ block:block
+    { return { type: "for_stmt", init: init, condition: cond, update: update, block: block }; }
 
 expression
   = left:term0 rest:(_ ("<" / ">") _ term0)+

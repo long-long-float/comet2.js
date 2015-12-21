@@ -19,39 +19,40 @@ class CaslCCompiler
 
     console.log ast
 
-    asm = []
-
-    for node in ast
-      switch node.type
-        when 'def_fun'
-          fasm = compiler.compileBlock(node.block)
-          if node.name == 'main'
-            fasm.unshift op('START', [])
-
-          fasm[0].label = node.name.toUpperCase()
-
-          fasm.push op('RET', [])
-
-          asm = asm.concat(fasm)
-
-    console.log asm.concat(compiler.constants)
-
-    asm.concat(compiler.constants).map((op) -> op.toString()).join("\n")
+    compiler.compile(ast)
 
   constructor: ->
     @constants = []
     @envStack = []
+
+    @nextLabel = null
+
+    @asm = []
+
+  compile: (ast) ->
+    for node in ast
+      switch node.type
+        when 'def_fun'
+          firstOpIndex = @asm.length
+          if node.name == 'main'
+            @addOperation op('START', [])
+          @compileBlock(node.block)
+          @asm[firstOpIndex].label = node.name.toUpperCase()
+          @addOperation op('RET', [])
+
+    console.log @asm.concat(@constants)
+
+    @asm.concat(@constants).map((op) -> op.toString()).join("\n")
 
   addConstant: (value) ->
     label = "label#{@constants.length}".toUpperCase()
     @constants.push op('DC', [value], label)
     label
 
-  compileBlock: (block) ->
-    @envStack.unshift([])
-    ret = _.flatten(block.stmts.map((stmt) => @compileAST(stmt)))
-    @envStack.shift()
-    ret
+  compileBlock: (block, stack = true) ->
+    @envStack.unshift([]) if stack
+    block.stmts.map((stmt) => @compileAST(stmt))
+    @envStack.shift() if stack
 
   findLocalVar: (name) ->
     for v, i in @envStack[0]
@@ -59,6 +60,19 @@ class CaslCCompiler
         return "GR#{i+3}"
 
     throw new Error("#{name} is not defined")
+
+  addOperation: (opr) ->
+    if @nextLabel
+      opr.label = @nextLabel
+      @nextLabel = null
+    @asm.push opr
+
+  addOperations: (ops) ->
+    for opr in ops
+      @addOperation opr
+
+  setNextLabel: (label) ->
+    @nextLabel = label
 
   compileAST: (ast) ->
     switch ast.type
@@ -71,7 +85,25 @@ class CaslCCompiler
             nakedStr = str.slice(1, str.length - 1)
             strLabel    = @addConstant("'#{nakedStr}'")
             strLenLabel = @addConstant(nakedStr.length)
-            [op('OUT', [strLabel, strLenLabel])]
+            @addOperation op('OUT', [strLabel, strLenLabel])
+
+      when 'while_stmt'
+        firstOpIndex = @asm.length
+        condition = ast.condition
+        switch condition.op
+          when '<'
+            @addOperations [
+                op('CPA', [@findLocalVar(ast.condition.left), "=#{ast.condition.right.value}"])
+                op('JPL', ["HOGE"])
+                op('JZE', ["HOGE"])
+              ]
+
+        @asm[firstOpIndex].label = 'PIYO'
+
+        @compileBlock(ast.block, false)
+        @addOperation op('JUMP', ['PIYO'])
+
+        @setNextLabel "HOGE"
 
       when 'def_var'
         variable =
@@ -82,15 +114,10 @@ class CaslCCompiler
 
         init_value = ast.init_value
         if init_value?
-          [
-            op('LAD', [@findLocalVar(variable.name), init_value.value])
-          ]
-        else
-          []
+          @addOperation op('LAD', [@findLocalVar(variable.name), init_value.value])
+
       when 'unary_op_b'
         gr = @findLocalVar(ast.right)
         switch ast.op
           when '++'
-            [
-              op('LAD', [gr, 1, gr])
-            ]
+            @addOperation op('LAD', [gr, 1, gr])

@@ -38,8 +38,18 @@ class CaslCCompiler
           firstOpIndex = @asm.length
           if node.name == 'main'
             @addOperation op('START', [])
+
+          @addOperation op('POP', ['GR1'])
+
+          @envStack.unshift([])
+          for arg in node.args
+            @addLocalVar(arg.type, arg.name)
+
           @compileBlock(node.block)
+          @envStack.shift()
+
           @asm[firstOpIndex].label = node.name.toUpperCase()
+
           @addOperation op('RET', [])
 
     @addOperations @constants
@@ -57,10 +67,13 @@ class CaslCCompiler
   addLabel: ->
     "LABEL#{@labelCount++}"
 
-  compileBlock: (block, stack = true) ->
-    @envStack.unshift([]) if stack
+  compileBlock: (block) ->
     block.stmts.map((stmt) => @compileAST(stmt))
-    @envStack.shift() if stack
+
+  addLocalVar: (type, name) ->
+    @envStack[0].push
+      type: type
+      name: name
 
   findLocalVar: (name) ->
     for v, i in @envStack[0]
@@ -104,6 +117,18 @@ class CaslCCompiler
             strLenLabel = @addConstant(nakedStr.length)
             @addOperation op('OUT', [strLabel, strLenLabel])
 
+          else
+            for i in [1..7]
+              @addOperation op('PUSH', [0, "GR#{i}"])
+
+            for arg in ast.args
+              @addOperation op('PUSH', [0, @findLocalVar(arg)])
+
+            @addOperation op('CALL', [])
+
+            for i in [7..1]
+              @addOperation op('POP', ["GR#{i}"])
+
       when 'while_stmt'
         headLabel = @addLabel()
         tailLabel = @addLabel()
@@ -113,7 +138,7 @@ class CaslCCompiler
 
         @asm[firstOpIndex].label = headLabel
 
-        @compileBlock(ast.block, false)
+        @compileBlock(ast.block)
         @addOperation op('JUMP', [headLabel])
 
         @setNextLabel(tailLabel)
@@ -128,18 +153,25 @@ class CaslCCompiler
         @compileBinaryOpWithJump(ast.condition, tailLabel)
         @asm[firstOpIndex].label = headLabel
 
-        @compileBlock(ast.block, false)
+        @compileBlock(ast.block)
         @compileAST(ast.update)
         @addOperation op('JUMP', [headLabel])
 
         @setNextLabel(tailLabel)
+
+      when 'return_stmt'
+        @addOperations [
+          op('LAD', ['GR0', ast.value.value])
+          op('PUSH', ['GR1'])
+          op('RET', [])
+        ]
 
       when 'def_var'
         variable =
           type: ast.var_type
           name: ast.name
 
-        @envStack[0].push variable
+        @addLocalVar(variable.type, variable.name)
 
         init_value = ast.init_value
         if init_value?

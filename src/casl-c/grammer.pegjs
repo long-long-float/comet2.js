@@ -87,12 +87,21 @@ expression
   = left:term0 rest:(_ ("<" / ">") _ term0)+
     { return binary_op(left, rest); }
   / term:term0
-    { return flatten(term)[0]; }
+    {
+      term = flatten(term);
+      if(is_array(term)) return term[0];
+      else return term;
+    }
 
 term0
-  = term1 (_ ("+" / "-") _ term1)*
+  = left:term1 rest:(_ "=" _ term1)+
+    { return binary_op(left, rest); }
+  / term1
 
 term1
+  = term2 (_ ("+" / "-") _ term2)*
+
+term2
   = unary (_ ("*" / "/") _ unary)*
 
 unary

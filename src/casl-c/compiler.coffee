@@ -126,6 +126,12 @@ class CaslCCompiler
         if init_value?
           @addOperation op('LAD', [@findLocalVar(variable.name), init_value.value])
 
+      when 'binary_op'
+        gr = @findLocalVar(ast.left)
+        switch ast.op
+          when '='
+            @addOperation op('LAD', [gr, ast.right.value])
+
       when 'unary_op_b'
         gr = @findLocalVar(ast.right)
         switch ast.op

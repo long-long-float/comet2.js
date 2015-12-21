@@ -12,6 +12,11 @@ op = -> new Operation(arguments...)
 
 class CaslCCompiler
 
+  # constants
+  RETURN_VALUE_REGISTER   = 'GR0'
+  RETURN_ADDRESS_REGISTER = 'GR1'
+  TEMPORARY_RESISTER      = 'GR2'
+
   @compile: (src) ->
     compiler = new CaslCCompiler()
 
@@ -35,11 +40,14 @@ class CaslCCompiler
     for node in ast
       switch node.type
         when 'def_fun'
+          atMain = node.name.value == 'main'
+
           firstOpIndex = @asm.length
-          if node.name == 'main'
+          if atMain
             @addOperation op('START', [])
 
-          @addOperation op('POP', ['GR1'])
+          unless atMain
+            @addOperation op('POP', [RETURN_ADDRESS_REGISTER])
 
           @envStack.unshift([])
           for arg in node.args
@@ -95,13 +103,21 @@ class CaslCCompiler
   setNextLabel: (label) ->
     @nextLabel = label
 
+  # return register (e.g. "GR3") if value is identifier
+  # else return immediate value (e.g. "=1")
+  getVarOrImmValue: (value) ->
+    if value.type == 'identifier'
+      @findLocalVar(value)
+    else
+      "=#{value.value}"
+
+  isImmValue: (value) ->
+    ['integer', 'string'].indexOf(value.type) != -1
+
   compileBinaryOpWithJump: (biop, tailLabel) ->
     switch biop.op
       when '<'
-        right = if biop.right.type == 'identifier'
-            @findLocalVar(biop.right)
-          else
-            "=#{biop.right.value}"
+        right = @getVarOrImmValue(biop.right)
 
         @addOperations [
           op('CPA', [@findLocalVar(biop.left), right])
@@ -166,8 +182,8 @@ class CaslCCompiler
 
       when 'return_stmt'
         @addOperations [
-          op('LAD', ['GR0', ast.value.value])
-          op('PUSH', ['GR1'])
+          op('LAD', [RETURN_VALUE_REGISTER, ast.value.value])
+          op('PUSH', [RETURN_ADDRESS_REGISTER])
           op('RET', [])
         ]
 
@@ -185,8 +201,20 @@ class CaslCCompiler
       when 'binary_op'
         gr = @findLocalVar(ast.left)
         switch ast.op
+          # assign
           when '='
-            @addOperation op('LAD', [gr, ast.right.value])
+            if @isImmValue(ast.right)
+              @addOperation op('LAD', [gr, ast.right.value])
+            else
+              @compileAST(ast.right)
+              @addOperation op('LD', [gr, TEMPORARY_RESISTER])
+
+          # arithmetic
+          when '+'
+            @addOperations [
+              op('LD', [TEMPORARY_RESISTER, @findLocalVar(ast.left)])
+              op('ADDA', [TEMPORARY_RESISTER, @getVarOrImmValue(ast.right)])
+            ]
 
       when 'unary_op_b'
         gr = @findLocalVar(ast.right)

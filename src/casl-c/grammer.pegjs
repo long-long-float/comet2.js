@@ -109,7 +109,9 @@ term0
   / term1
 
 term1
-  = term2 (_ ("+" / "-") _ term2)*
+  = left:term2 rest:(_ ("+" / "-") _ term2)+
+    { return binary_op(left, rest); }
+  / term2
 
 term2
   = unary (_ ("*" / "/") _ unary)*

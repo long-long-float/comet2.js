@@ -79,6 +79,15 @@ class CaslCCompiler
   setNextLabel: (label) ->
     @nextLabel = label
 
+  compileBinaryOpWithJump: (biop, tailLabel) ->
+    switch biop.op
+      when '<'
+        @addOperations [
+          op('CPA', [@findLocalVar(biop.left), "=#{biop.right.value}"])
+          op('JPL', [tailLabel])
+          op('JZE', [tailLabel])
+        ]
+
   compileAST: (ast) ->
     switch ast.type
       when 'call_function'
@@ -95,16 +104,9 @@ class CaslCCompiler
       when 'while_stmt'
         headLabel = @addLabel()
         tailLabel = @addLabel()
-
         firstOpIndex = @asm.length
-        condition = ast.condition
-        switch condition.op
-          when '<'
-            @addOperations [
-                op('CPA', [@findLocalVar(ast.condition.left), "=#{ast.condition.right.value}"])
-                op('JPL', [tailLabel])
-                op('JZE', [tailLabel])
-              ]
+
+        @compileBinaryOpWithJump(ast.condition, tailLabel)
 
         @asm[firstOpIndex].label = headLabel
 

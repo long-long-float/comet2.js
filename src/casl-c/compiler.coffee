@@ -22,6 +22,8 @@ class CaslCCompiler
     compiler.compile(ast)
 
   constructor: ->
+    @labelCount = 0
+
     @constants = []
     @envStack = []
 
@@ -45,9 +47,12 @@ class CaslCCompiler
     @asm.concat(@constants).map((op) -> op.toString()).join("\n")
 
   addConstant: (value) ->
-    label = "label#{@constants.length}".toUpperCase()
+    label = @addLabel()
     @constants.push op('DC', [value], label)
     label
+
+  addLabel: ->
+    "LABEL#{@labelCount++}"
 
   compileBlock: (block, stack = true) ->
     @envStack.unshift([]) if stack
@@ -88,22 +93,25 @@ class CaslCCompiler
             @addOperation op('OUT', [strLabel, strLenLabel])
 
       when 'while_stmt'
+        headLabel = @addLabel()
+        tailLabel = @addLabel()
+
         firstOpIndex = @asm.length
         condition = ast.condition
         switch condition.op
           when '<'
             @addOperations [
                 op('CPA', [@findLocalVar(ast.condition.left), "=#{ast.condition.right.value}"])
-                op('JPL', ["HOGE"])
-                op('JZE', ["HOGE"])
+                op('JPL', [tailLabel])
+                op('JZE', [tailLabel])
               ]
 
-        @asm[firstOpIndex].label = 'PIYO'
+        @asm[firstOpIndex].label = headLabel
 
         @compileBlock(ast.block, false)
-        @addOperation op('JUMP', ['PIYO'])
+        @addOperation op('JUMP', [headLabel])
 
-        @setNextLabel "HOGE"
+        @setNextLabel(tailLabel)
 
       when 'def_var'
         variable =

@@ -15,7 +15,7 @@ class CaslCCompiler
   # constants
   RETURN_VALUE_REGISTER   = 'GR0'
   RETURN_ADDRESS_REGISTER = 'GR1'
-  TEMPORARY_RESISTER      = 'GR2'
+  TEMPORARY_RESISTER      = 'GR0'
 
   @compile: (src) ->
     compiler = new CaslCCompiler()
@@ -51,7 +51,8 @@ class CaslCCompiler
 
           @envStack.unshift([])
           for arg in node.args
-            @addLocalVar(arg.type, arg.name)
+            @addLocalVar(arg.var_type, arg.value)
+            @addOperation op('POP', [@findLocalVar(arg.value)])
 
           @compileBlock(node.block)
           @envStack.shift()
@@ -142,10 +143,14 @@ class CaslCCompiler
             for i in [1..7]
               @addOperation op('PUSH', [0, "GR#{i}"])
 
-            for arg in ast.args
-              @addOperation op('PUSH', [0, @findLocalVar(arg)])
+            for arg in ast.args by -1
+              args = if @isImmValue(arg)
+                  [arg.value]
+                else
+                  [0, @findLocalVar(arg)]
+              @addOperation op('PUSH', args)
 
-            @addOperation op('CALL', [])
+            @addOperation op('CALL', [ast.name.value.toUpperCase()])
 
             for i in [7..1]
               @addOperation op('POP', ["GR#{i}"])
@@ -181,9 +186,14 @@ class CaslCCompiler
         @setNextLabel(tailLabel)
 
       when 'return_stmt'
+        if @isImmValue(ast.value)
+          @addOperation op('LAD', [RETURN_VALUE_REGISTER, ast.value.value])
+        else
+          @compileAST(ast.value)
+          @addOperation op('LD', [RETURN_VALUE_REGISTER, TEMPORARY_RESISTER])
+
         @addOperations [
-          op('LAD', [RETURN_VALUE_REGISTER, ast.value.value])
-          op('PUSH', [RETURN_ADDRESS_REGISTER])
+          op('PUSH', [0, RETURN_ADDRESS_REGISTER])
           op('RET', [])
         ]
 

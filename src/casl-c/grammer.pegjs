@@ -32,7 +32,7 @@
 
   function mkargs(fst_arg, rest_args) {
     if(fst_arg === null) return [];
-    else { return [fst_arg].concat(rest_args); }
+    else { return filter(flatten([fst_arg].concat(rest_args)), [',', ' ']); }
   }
 
   function flatten(ary) {
@@ -144,7 +144,7 @@ block
 
 def_arg
   = type:type _ name:identifier
-    { return { type: "def_arg", type: type, name: name }; }
+    { return { type: "def_arg", var_type: type, value: name }; }
 
 type
   = id:identifier

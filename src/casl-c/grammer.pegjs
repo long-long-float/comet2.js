@@ -94,7 +94,7 @@ return_stmt
     { return { type: "return_stmt", value: value }; }
 
 expression
-  = left:term0 rest:(_ ("<" / ">") _ term0)+
+  = left:term0 rest:(_ "=" _ term0)+
     { return binary_op(left, rest); }
   / term:term0
     {
@@ -104,7 +104,7 @@ expression
     }
 
 term0
-  = left:term1 rest:(_ "=" _ term1)+
+  = left:term1 rest:(_ ("<=" / ">=" / "<" / ">") _ term1)+
     { return binary_op(left, rest); }
   / term1
 

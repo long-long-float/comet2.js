@@ -109,21 +109,32 @@ class CaslCCompiler
   getVarOrImmValue: (value) ->
     if value.type == 'identifier'
       @findLocalVar(value)
-    else
+    else if value.value?
       "=#{value.value}"
+    else
+      null
 
   isImmValue: (value) ->
     ['integer', 'string'].indexOf(value.type) != -1
 
   compileBinaryOpWithJump: (biop, tailLabel) ->
+    right = @getVarOrImmValue(biop.right)
+    unless right?
+      @compileAST(biop.right)
+      right = TEMPORARY_RESISTER
+
     switch biop.op
       when '<'
-        right = @getVarOrImmValue(biop.right)
-
         @addOperations [
           op('CPA', [@findLocalVar(biop.left), right])
           op('JPL', [tailLabel])
           op('JZE', [tailLabel])
+        ]
+
+      when '<='
+        @addOperations [
+          op('CPA', [@findLocalVar(biop.left), right])
+          op('JPL', [tailLabel])
         ]
 
   compileAST: (ast) ->
@@ -224,6 +235,11 @@ class CaslCCompiler
             @addOperations [
               op('LD', [TEMPORARY_RESISTER, @findLocalVar(ast.left)])
               op('ADDA', [TEMPORARY_RESISTER, @getVarOrImmValue(ast.right)])
+            ]
+          when '-'
+            @addOperations [
+              op('LD', [TEMPORARY_RESISTER, @findLocalVar(ast.left)])
+              op('SUBA', [TEMPORARY_RESISTER, @getVarOrImmValue(ast.right)])
             ]
 
       when 'unary_op_b'

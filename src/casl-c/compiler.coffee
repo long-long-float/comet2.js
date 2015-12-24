@@ -118,6 +118,10 @@ class CaslCCompiler
     ['integer', 'string'].indexOf(value.type) != -1
 
   compileBinaryOpWithJump: (biop, tailLabel) ->
+    left  = @getVarOrImmValue(biop.left)
+    unless left?
+      @compileAST(biop.left)
+      left = TEMPORARY_RESISTER
     right = @getVarOrImmValue(biop.right)
     unless right?
       @compileAST(biop.right)
@@ -126,16 +130,23 @@ class CaslCCompiler
     switch biop.op
       when '<'
         @addOperations [
-          op('CPA', [@findLocalVar(biop.left), right])
+          op('CPA', [left, right])
           op('JPL', [tailLabel])
           op('JZE', [tailLabel])
         ]
 
       when '<='
         @addOperations [
-          op('CPA', [@findLocalVar(biop.left), right])
+          op('CPA', [left, right])
           op('JPL', [tailLabel])
         ]
+
+      when '>='
+        @addOperations [
+          op('CPA', [left, right])
+          op('JMI', [tailLabel])
+        ]
+
 
   compileAST: (ast) ->
     switch ast.type

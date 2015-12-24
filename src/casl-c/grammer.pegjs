@@ -8,7 +8,7 @@
   }
 
   function binary_op(left, rest) {
-    left = flatten(left);
+    left = flatten([left]);
     rest = filter(flatten(rest), [" "]);
 
     var binary_op_intr = function(nodes) {

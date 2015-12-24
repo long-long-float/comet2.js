@@ -147,6 +147,11 @@ class CaslCCompiler
           op('JMI', [tailLabel])
         ]
 
+      when '=='
+        @addOperations [
+          op('CPA', [left, right])
+          op('JNZ', [tailLabel])
+        ]
 
   compileAST: (ast) ->
     switch ast.type
@@ -176,6 +181,27 @@ class CaslCCompiler
 
             for i in [7..1]
               @addOperation op('POP', ["GR#{i}"])
+
+      when 'if_stmt'
+        if ast.iffalse?
+          elseLabel = @addLabel()
+          tailLabel = @addLabel()
+
+          @compileBinaryOpWithJump(ast.condition, elseLabel)
+
+          @compileBlock(ast.iftrue)
+          @addOperation op('JUMP', [tailLabel])
+          @setNextLabel(elseLabel)
+
+          @compileBlock(ast.iffalse)
+          @setNextLabel(tailLabel)
+        else
+          tailLabel = @addLabel()
+
+          @compileBinaryOpWithJump(ast.condition, tailLabel)
+
+          @compileBlock(ast.iftrue)
+          @setNextLabel(tailLabel)
 
       when 'while_stmt'
         headLabel = @addLabel()

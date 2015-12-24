@@ -3,6 +3,10 @@
     return { type: type, value: value };
   }
 
+  function if_stmt(condition, iftrue, iffalse) {
+    return { type: "if_stmt", condition: condition, iftrue: iftrue, iffalse: iffalse[3] };
+  }
+
   function unary_op_b(op, right) {
     return { type: "unary_op_b", op: op, right: right};
   }
@@ -78,8 +82,8 @@ def_var
     { return { type: "def_var", var_type: type, name: name, init_value: init_value && init_value[2] }; }
 
 if_stmt
-  = "if" _ "(" _ cond:expression _ ")" _ block:block
-    { return { type: "if_stmt", condition: cond, block: block }; }
+  = "if" _ "(" _ cond:expression _ ")" _ iftrue:block iffalse:(_ "else" _ block)
+    { return if_stmt(cond, iftrue, iffalse); }
 
 while_stmt
   = "while" _ "(" _ cond:expression _ ")" _ block:block
@@ -104,7 +108,7 @@ expression
     }
 
 term0
-  = left:term1 rest:(_ ("<=" / ">=" / "<" / ">") _ term1)+
+  = left:term1 rest:(_ ("<=" / ">=" / "<" / ">" / "==") _ term1)+
     { return binary_op(left, rest); }
   / term1
 

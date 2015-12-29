@@ -121,7 +121,14 @@ class CaslCCompiler
     if value.type == 'identifier'
       @findLocalVar(value)
     else if value.value?
-      "=#{value.value}"
+      val = switch value.type
+        when 'integer'
+          value.value
+        when 'string'
+          "'#{value.value}'"
+        when 'char'
+          "'#{value.value}'"
+      "=#{val}"
     else
       null
 
@@ -285,10 +292,10 @@ class CaslCCompiler
           @addOperation op('LD', [@findLocalVar(variable.name), TEMPORARY_RESISTER])
 
       when 'binary_op'
-        gr = @findLocalVar(ast.left)
         switch ast.op
           # assign
           when '='
+            gr = @findLocalVar(ast.left)
             if @isImmValue(ast.right)
               @addOperation op('LAD', [gr, ast.right.value])
             else
@@ -298,7 +305,7 @@ class CaslCCompiler
           # arithmetic
           when '+'
             @addOperations [
-              op('LD', [TEMPORARY_RESISTER, @findLocalVar(ast.left)])
+              op('LD', [TEMPORARY_RESISTER, @getVarOrImmValue(ast.left)])
               op('ADDA', [TEMPORARY_RESISTER, @getVarOrImmValue(ast.right)])
             ]
           when '-'

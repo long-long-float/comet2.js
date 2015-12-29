@@ -102,6 +102,8 @@ class CaslCCompiler
       @addOperation opr
 
   setNextLabel: (label) ->
+    if @nextLabel
+      @addOperation op('NOP', [])
     @nextLabel = label
 
   # return register (e.g. "GR3") if value is identifier

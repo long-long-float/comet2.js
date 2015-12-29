@@ -145,6 +145,8 @@ string
 block
   = "{" _ stmts:(statement _ ) * _ "}"
     { return { type: "block", stmts: filter(flatten(stmts), [" ", "\n", ";"]) } }
+  / stmt:statement
+    { return { type: "block", stmts: [stmt] }; }
 
 def_arg
   = type:type _ name:identifier

@@ -132,6 +132,7 @@ factor
     { return { type: "call_function", name: name, args: mkargs(fst_arg, rest_args) }; }
   / integer
   / string
+  / character
   / identifier
 
 integer "integer"
@@ -139,8 +140,12 @@ integer "integer"
     { return node("integer", parseInt(text(), 10)); }
 
 string
-  = "\"" [^"]* "\""
-    { return node("string", text()); }
+  = "\"" value:([^"]*) "\""
+    { return node("string", value); }
+
+character
+  = "'" value:. "'"
+    { return node("char", value); }
 
 block
   = "{" _ stmts:(statement _ ) * _ "}"

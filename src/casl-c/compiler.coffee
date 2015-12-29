@@ -36,6 +36,10 @@ class CaslCCompiler
 
     @asm = []
 
+    @labelOfPutc =
+      value:  @reserveSpace(1)
+      length: @addConstant(1)
+
   compile: (ast) ->
     for node in ast
       switch node.type
@@ -71,6 +75,11 @@ class CaslCCompiler
   addConstant: (value) ->
     label = @addLabel()
     @constants.push op('DC', [value], label)
+    label
+
+  reserveSpace: (size) ->
+    label = @addLabel()
+    @constants.push op('DS', [size], label)
     label
 
   addLabel: ->
@@ -168,6 +177,22 @@ class CaslCCompiler
             strLenLabel = @addConstant(nakedStr.length)
             @addOperation op('OUT', [strLabel, strLenLabel])
 
+          when 'putc'
+            unless ast.args.length == 1
+              throw new Error("number of arguments of putc must be 1")
+
+            arg = ast.args[0]
+            ###
+            if arg.type == 'char'
+              @addOperation op('OUT', [@addConstant("'#{arg.value}'"), @labelOfPutc.length])
+            else
+            ###
+            @compileAST(arg)
+            @addOperations [
+              op('ST',  [TEMPORARY_RESISTER, @labelOfPutc.value])
+              op('OUT', [@labelOfPutc.value, @labelOfPutc.length])
+            ]
+
           else
             for i in [1..7]
               @addOperation op('PUSH', [0, "GR#{i}"])
@@ -256,7 +281,8 @@ class CaslCCompiler
 
         init_value = ast.init_value
         if init_value?
-          @addOperation op('LAD', [@findLocalVar(variable.name), init_value.value])
+          @compileAST(init_value)
+          @addOperation op('LD', [@findLocalVar(variable.name), TEMPORARY_RESISTER])
 
       when 'binary_op'
         gr = @findLocalVar(ast.left)
@@ -286,3 +312,15 @@ class CaslCCompiler
         switch ast.op
           when '++'
             @addOperation op('LAD', [gr, 1, gr])
+
+      when 'identifier'
+        @addOperation op('LD', [TEMPORARY_RESISTER, @findLocalVar(ast)])
+
+      when 'char'
+        @addOperation op('LAD', [TEMPORARY_RESISTER, ast.value.charCodeAt(0)])
+
+      when 'integer'
+        @addOperation op('LAD', [TEMPORARY_RESISTER, ast.value])
+
+      else
+        throw new Error("unknown AST node: #{ast.type}")

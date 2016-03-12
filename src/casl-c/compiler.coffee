@@ -46,12 +46,13 @@ class CaslCCompiler
         when 'def_fun'
           atMain = node.name.value == 'main'
 
-          firstOpIndex = @asm.length
           if atMain
             @addOperation op('START', [])
 
           unless atMain
             @addOperation op('POP', [RETURN_ADDRESS_REGISTER])
+
+          @asm[@asm.length - 1].label = node.name.value.toUpperCase()
 
           @envStack.unshift([])
           for arg in node.args
@@ -60,8 +61,6 @@ class CaslCCompiler
 
           @compileBlock(node.block)
           @envStack.shift()
-
-          @asm[firstOpIndex].label = node.name.value.toUpperCase()
 
           @addOperation op('RET', [])
 
@@ -135,41 +134,43 @@ class CaslCCompiler
   isImmValue: (value) ->
     ['integer', 'string'].indexOf(value.type) != -1
 
+  tempResister: (idx) ->
+    "GR#{idx}"
+
   compileBinaryOpWithJump: (biop, tailLabel) ->
-    left  = @getVarOrImmValue(biop.left)
-    unless left?
-      @compileAST(biop.left)
-      left = TEMPORARY_RESISTER
-    right = @getVarOrImmValue(biop.right)
-    unless right?
-      @compileAST(biop.right)
-      right = TEMPORARY_RESISTER
+    left  = null
+    right = null
+    @compileAST(biop.left)
+    left  = @tempResister(0)
+    @compileAST(biop.right)
+    right = @tempResister(1)
+
+    @addOperation op('CPA', [left, right])
 
     switch biop.op
       when '<'
         @addOperations [
-          op('CPA', [left, right])
           op('JPL', [tailLabel])
           op('JZE', [tailLabel])
         ]
 
-      when '<='
+      when '>'
         @addOperations [
-          op('CPA', [left, right])
-          op('JPL', [tailLabel])
+          op('JMI', [tailLabel])
+          op('JZE', [tailLabel])
         ]
+
+      when '<='
+        @addOperation op('JPL', [tailLabel])
 
       when '>='
-        @addOperations [
-          op('CPA', [left, right])
-          op('JMI', [tailLabel])
-        ]
+        @addOperation op('JMI', [tailLabel])
 
       when '=='
-        @addOperations [
-          op('CPA', [left, right])
-          op('JNZ', [tailLabel])
-        ]
+        @addOperation op('JNZ', [tailLabel])
+
+      else
+        throw new Error("unknown bi_op: #{biop.op}")
 
   compileAST: (ast) ->
     switch ast.type
@@ -179,9 +180,8 @@ class CaslCCompiler
             throw new Error("number of arguments of puts must be 1") unless ast.args.length == 1
 
             str = ast.args[0].value
-            nakedStr = str.slice(1, str.length - 1)
-            strLabel    = @addConstant("'#{nakedStr}'")
-            strLenLabel = @addConstant(nakedStr.length)
+            strLabel    = @addConstant("'#{str}'")
+            strLenLabel = @addConstant(str.length)
             @addOperation op('OUT', [strLabel, strLenLabel])
 
           when 'putc'

@@ -4,7 +4,13 @@
   }
 
   function if_stmt(condition, iftrue, iffalse) {
-    return { type: "if_stmt", condition: condition, iftrue: iftrue, iffalse: iffalse[3] };
+    var ret = { type: "if_stmt", condition: condition, iftrue: iftrue };
+    if(iffalse !== null) ret['iffalse'] = iffalse[3];
+    return ret;
+  }
+
+  function block(stmts) {
+    return { type: "block", stmts: filter(flatten(stmts), [" ", "\n", ";"]) };
   }
 
   function unary_op_b(op, right) {
@@ -82,7 +88,7 @@ def_var
     { return { type: "def_var", var_type: type, name: name, init_value: init_value && init_value[2] }; }
 
 if_stmt
-  = "if" _ "(" _ cond:expression _ ")" _ iftrue:block iffalse:(_ "else" _ block)
+  = "if" _ "(" _ cond:expression _ ")" _ iftrue:block iffalse:(_ "else" _ block)?
     { return if_stmt(cond, iftrue, iffalse); }
 
 while_stmt
@@ -141,7 +147,7 @@ integer "integer"
 
 string
   = "\"" value:([^"]*) "\""
-    { return node("string", value); }
+    { return node("string", value.join('')); }
 
 character
   = "'" value:. "'"
@@ -149,9 +155,9 @@ character
 
 block
   = "{" _ stmts:(statement _ ) * _ "}"
-    { return { type: "block", stmts: filter(flatten(stmts), [" ", "\n", ";"]) } }
+    { return block(stmts); }
   / stmt:statement
-    { return { type: "block", stmts: [stmt] }; }
+    { return block([stmt]); }
 
 def_arg
   = type:type _ name:identifier

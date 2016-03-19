@@ -13,9 +13,10 @@ op = -> new Operation(arguments...)
 class CaslCCompiler
 
   # constants
-  RETURN_VALUE_REGISTER   = 'GR0'
-  RETURN_ADDRESS_REGISTER = 'GR1'
+  RETURN_ADDRESS_REGISTER = 'GR3'
   TEMPORARY_RESISTER      = 'GR0'
+  LH_TEMPORARY_REGISTER   = 'GR1'
+  RH_TEMPORARY_REGISTER   = 'GR2'
 
   @compile: (src) ->
     compiler = new CaslCCompiler()
@@ -39,6 +40,8 @@ class CaslCCompiler
     @labelOfPutc =
       value:  @reserveSpace(1)
       length: @addConstant(1)
+
+    @currentResultRegister = LH_TEMPORARY_REGISTER
 
   compile: (ast) ->
     for node in ast
@@ -138,12 +141,13 @@ class CaslCCompiler
     "GR#{idx}"
 
   compileBinaryOpWithJump: (biop, tailLabel) ->
-    left  = null
-    right = null
+    @currentResultRegister = LH_TEMPORARY_REGISTER
     @compileAST(biop.left)
-    left  = @tempResister(0)
+    left  = @currentResultRegister
+
+    @currentResultRegister = RH_TEMPORARY_REGISTER
     @compileAST(biop.right)
-    right = @tempResister(1)
+    right = @currentResultRegister
 
     @addOperation op('CPA', [left, right])
 
@@ -269,10 +273,10 @@ class CaslCCompiler
 
       when 'return_stmt'
         if @isImmValue(ast.value)
-          @addOperation op('LAD', [RETURN_VALUE_REGISTER, ast.value.value])
+          @addOperation op('LAD', [TEMPORARY_RESISTER, ast.value.value])
         else
           @compileAST(ast.value)
-          @addOperation op('LD', [RETURN_VALUE_REGISTER, TEMPORARY_RESISTER])
+          @addOperation op('LD', [TEMPORARY_RESISTER, TEMPORARY_RESISTER])
 
         @addOperations [
           op('PUSH', [0, RETURN_ADDRESS_REGISTER])
@@ -304,15 +308,11 @@ class CaslCCompiler
 
           # arithmetic
           when '+'
-            @addOperations [
-              op('LD', [TEMPORARY_RESISTER, @getVarOrImmValue(ast.left)])
-              op('ADDA', [TEMPORARY_RESISTER, @getVarOrImmValue(ast.right)])
-            ]
+            @compileAST(ast.left)
+            @addOperation op('ADDA', [@currentResultRegister, @getVarOrImmValue(ast.right)])
           when '-'
-            @addOperations [
-              op('LD', [TEMPORARY_RESISTER, @findLocalVar(ast.left)])
-              op('SUBA', [TEMPORARY_RESISTER, @getVarOrImmValue(ast.right)])
-            ]
+            @compileAST(ast.left)
+            @addOperation op('SUBA', [@currentResultRegister, @getVarOrImmValue(ast.right)])
 
       when 'unary_op_b'
         gr = @findLocalVar(ast.right)
@@ -321,7 +321,7 @@ class CaslCCompiler
             @addOperation op('LAD', [gr, 1, gr])
 
       when 'identifier'
-        @addOperation op('LD', [TEMPORARY_RESISTER, @findLocalVar(ast)])
+        @addOperation op('LD', [@currentResultRegister, @findLocalVar(ast)])
 
       when 'char'
         @addOperation op('LAD', [TEMPORARY_RESISTER, ast.value.charCodeAt(0)])

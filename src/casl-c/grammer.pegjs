@@ -124,7 +124,9 @@ term1
   / term2
 
 term2
-  = unary (_ ("*" / "/") _ unary)*
+  = left:unary rest:(_ ("*" / "/" / "%") _ unary)+
+    { return binary_op(left, rest); }
+  / unary
 
 unary
   = id:identifier _ "++"

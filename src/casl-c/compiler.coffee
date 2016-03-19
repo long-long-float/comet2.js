@@ -17,6 +17,7 @@ class CaslCCompiler
   TEMPORARY_RESISTER      = 'GR0'
   LH_TEMPORARY_REGISTER   = 'GR1'
   RH_TEMPORARY_REGISTER   = 'GR2'
+  VARIABLE_REGISTER_BASE  = 4
 
   @compile: (src) ->
     compiler = new CaslCCompiler()
@@ -43,29 +44,31 @@ class CaslCCompiler
 
     @currentResultRegister = LH_TEMPORARY_REGISTER
 
+    @usedOps = {}
+
   compile: (ast) ->
     for node in ast
-      switch node.type
-        when 'def_fun'
-          atMain = node.name.value == 'main'
+      @compileAST(node)
 
-          if atMain
-            @addOperation op('START', [])
+    for opr, v of @usedOps
+      switch opr
+        when '%'
+          ast = CaslCParser.parse("""
+            int mod(int a, int b) {
+              int ret = a;
+              while(ret - b >= 0) {
+                ret = ret - b;
+              }
+              return ret;
+            }
+          """)
+          @compileAST(ast[0])
 
-          unless atMain
-            @addOperation op('POP', [RETURN_ADDRESS_REGISTER])
-
-          @asm[@asm.length - 1].label = node.name.value.toUpperCase()
-
-          @envStack.unshift([])
-          for arg in node.args
-            @addLocalVar(arg.var_type, arg.value)
-            @addOperation op('POP', [@findLocalVar(arg.value)])
-
-          @compileBlock(node.block)
-          @envStack.shift()
-
-          @addOperation op('RET', [])
+    for opr in @asm
+      continue unless opr.name == 'CALL'
+      opr.args[0] = switch opr.args[0]
+        when '$MOD'
+          'MOD'
 
     @addOperations @constants
     @addOperation op('END', [])
@@ -98,7 +101,7 @@ class CaslCCompiler
   findLocalVar: (id) ->
     for v, i in @envStack[0]
       if v.name == id.value
-        return "GR#{i+3}"
+        return "GR#{i+VARIABLE_REGISTER_BASE}"
 
     throw new Error("#{id.value} is not defined")
 
@@ -176,49 +179,75 @@ class CaslCCompiler
       else
         throw new Error("unknown bi_op: #{biop.op}")
 
+  compileCallFun: (name, args) ->
+    switch name.value
+      when 'puts'
+        throw new Error("number of arguments of puts must be 1") unless args.length == 1
+
+        str = args[0].value
+        strLabel    = @addConstant("'#{str}'")
+        strLenLabel = @addConstant(str.length)
+        @addOperation op('OUT', [strLabel, strLenLabel])
+
+      when 'putc'
+        unless args.length == 1
+          throw new Error("number of arguments of putc must be 1")
+
+        arg = args[0]
+        ###
+        if arg.type == 'char'
+          @addOperation op('OUT', [@addConstant("'#{arg.value}'"), @labelOfPutc.length])
+        else
+        ###
+        @compileAST(arg)
+        @addOperations [
+          op('ST',  [TEMPORARY_RESISTER, @labelOfPutc.value])
+          op('OUT', [@labelOfPutc.value, @labelOfPutc.length])
+        ]
+
+      else
+        for i in [1..7]
+          @addOperation op('PUSH', [0, "GR#{i}"])
+
+        for arg in args by -1
+          arg_ = if @isImmValue(arg)
+              [arg.value]
+            else
+              [0, @findLocalVar(arg)]
+          @addOperation op('PUSH', arg_)
+
+        @addOperation op('CALL', [name.value.toUpperCase()])
+
+        for i in [7..1]
+          @addOperation op('POP', ["GR#{i}"])
+
+        @addOperation op('LD', [@currentResultRegister, TEMPORARY_RESISTER])
+
   compileAST: (ast) ->
     switch ast.type
+      when 'def_fun'
+        atMain = ast.name.value == 'main'
+
+        if atMain
+          @addOperation op('START', [])
+
+        unless atMain
+          @addOperation op('POP', [RETURN_ADDRESS_REGISTER])
+
+        @asm[@asm.length - 1].label = ast.name.value.toUpperCase()
+
+        @envStack.unshift([])
+        for arg in ast.args
+          @addLocalVar(arg.var_type, arg.value)
+          @addOperation op('POP', [@findLocalVar(arg.value)])
+
+        @compileBlock(ast.block)
+        @envStack.shift()
+
+        @addOperation op('RET', [])
+
       when 'call_function'
-        switch ast.name.value
-          when 'puts'
-            throw new Error("number of arguments of puts must be 1") unless ast.args.length == 1
-
-            str = ast.args[0].value
-            strLabel    = @addConstant("'#{str}'")
-            strLenLabel = @addConstant(str.length)
-            @addOperation op('OUT', [strLabel, strLenLabel])
-
-          when 'putc'
-            unless ast.args.length == 1
-              throw new Error("number of arguments of putc must be 1")
-
-            arg = ast.args[0]
-            ###
-            if arg.type == 'char'
-              @addOperation op('OUT', [@addConstant("'#{arg.value}'"), @labelOfPutc.length])
-            else
-            ###
-            @compileAST(arg)
-            @addOperations [
-              op('ST',  [TEMPORARY_RESISTER, @labelOfPutc.value])
-              op('OUT', [@labelOfPutc.value, @labelOfPutc.length])
-            ]
-
-          else
-            for i in [1..7]
-              @addOperation op('PUSH', [0, "GR#{i}"])
-
-            for arg in ast.args by -1
-              args = if @isImmValue(arg)
-                  [arg.value]
-                else
-                  [0, @findLocalVar(arg)]
-              @addOperation op('PUSH', args)
-
-            @addOperation op('CALL', [ast.name.value.toUpperCase()])
-
-            for i in [7..1]
-              @addOperation op('POP', ["GR#{i}"])
+        @compileCallFun(ast.name, ast.args)
 
       when 'if_stmt'
         if ast.iffalse?
@@ -292,6 +321,7 @@ class CaslCCompiler
 
         init_value = ast.init_value
         if init_value?
+          @currentResultRegister = TEMPORARY_RESISTER
           @compileAST(init_value)
           @addOperation op('LD', [@findLocalVar(variable.name), TEMPORARY_RESISTER])
 
@@ -303,6 +333,7 @@ class CaslCCompiler
             if @isImmValue(ast.right)
               @addOperation op('LAD', [gr, ast.right.value])
             else
+              @currentResultRegister = TEMPORARY_RESISTER
               @compileAST(ast.right)
               @addOperation op('LD', [gr, TEMPORARY_RESISTER])
 
@@ -313,6 +344,9 @@ class CaslCCompiler
           when '-'
             @compileAST(ast.left)
             @addOperation op('SUBA', [@currentResultRegister, @getVarOrImmValue(ast.right)])
+          when '%'
+            @usedOps['%'] = true
+            @compileCallFun({ value: '$mod' }, [ast.left, ast.right])
 
       when 'unary_op_b'
         gr = @findLocalVar(ast.right)
@@ -327,7 +361,7 @@ class CaslCCompiler
         @addOperation op('LAD', [TEMPORARY_RESISTER, ast.value.charCodeAt(0)])
 
       when 'integer'
-        @addOperation op('LAD', [TEMPORARY_RESISTER, ast.value])
+        @addOperation op('LAD', [@currentResultRegister, ast.value])
 
       else
         throw new Error("unknown AST node: #{ast.type}")

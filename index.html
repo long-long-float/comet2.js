@@ -79,7 +79,7 @@
       labels = program.labels;
       console.log(program);
 
-      vm = new CometVM({ outputOperation: true });
+      vm = new CometVM({ outputOperation: false });
       vm.oninput = function() {
         return $("#input").val();
       };

@@ -33,6 +33,7 @@ class CaslCCompiler
 
     @constants = []
     @envStack = []
+    @globalEnv = []
 
     @nextLabel = null
 
@@ -48,7 +49,7 @@ class CaslCCompiler
 
   compile: (ast) ->
     for node in ast
-      @compileAST(node)
+      @compileGlobalAST(node)
 
     for opr, v of @usedOps
       switch opr
@@ -62,13 +63,15 @@ class CaslCCompiler
               return ret;
             }
           """)
-          @compileAST(ast[0])
+          @compileGlobalAST(ast[0])
 
     for opr in @asm
       continue unless opr.name == 'CALL'
       opr.args[0] = switch opr.args[0]
         when '$MOD'
           'MOD'
+        else
+          opr.args[0]
 
     @addOperations @constants
     @addOperation op('END', [])
@@ -98,10 +101,23 @@ class CaslCCompiler
       type: type
       name: id.value
 
+  addGlobalVar: (type, id, label) ->
+    @globalEnv.push
+      type: type,
+      name: id.value,
+      label: label
+
   findLocalVar: (id) ->
     for v, i in @envStack[0]
       if v.name == id.value
         return "GR#{i+VARIABLE_REGISTER_BASE}"
+
+    throw new Error("#{id.value} is not defined")
+
+  findGlobalVar: (id) ->
+    for v, i in @globalEnv
+      if v.name == id.value
+        return v.label
 
     throw new Error("#{id.value} is not defined")
 
@@ -223,7 +239,7 @@ class CaslCCompiler
 
         @addOperation op('LD', [@currentResultRegister, TEMPORARY_RESISTER])
 
-  compileAST: (ast) ->
+  compileGlobalAST: (ast) ->
     switch ast.type
       when 'def_fun'
         atMain = ast.name.value == 'main'
@@ -246,6 +262,22 @@ class CaslCCompiler
 
         @addOperation op('RET', [])
 
+      when 'def_var'
+        vtype = ast.var_type
+        vname = ast.name
+
+        init_value = ast.init_value
+        label = if init_value?
+            unless @isImmValue(init_value)
+              throw new Error("initial value of global variable must be immediate value.")
+            @addConstant(init_value.value)
+          else
+            @reserveSpace(1)
+
+        @addGlobalVar(vtype, vname, label)
+
+  compileAST: (ast) ->
+    switch ast.type
       when 'call_function'
         @compileCallFun(ast.name, ast.args)
 
@@ -313,17 +345,16 @@ class CaslCCompiler
         ]
 
       when 'def_var'
-        variable =
-          type: ast.var_type
-          name: ast.name
+        vtype = ast.var_type
+        vname = ast.name
 
-        @addLocalVar(variable.type, variable.name)
+        @addLocalVar(vtype, vname)
 
         init_value = ast.init_value
         if init_value?
           @currentResultRegister = TEMPORARY_RESISTER
           @compileAST(init_value)
-          @addOperation op('LD', [@findLocalVar(variable.name), TEMPORARY_RESISTER])
+          @addOperation op('LD', [@findLocalVar(vname), TEMPORARY_RESISTER])
 
       when 'binary_op'
         switch ast.op
@@ -349,10 +380,20 @@ class CaslCCompiler
             @compileCallFun({ value: '$mod' }, [ast.left, ast.right])
 
       when 'unary_op_b'
-        gr = @findLocalVar(ast.right)
-        switch ast.op
-          when '++'
-            @addOperation op('LAD', [gr, 1, gr])
+        try
+          gr = @findLocalVar(ast.right)
+          switch ast.op
+            when '++'
+              @addOperation op('LAD', [gr, 1, gr])
+        catch e
+          label = @findGlobalVar(ast.right)
+          switch ast.op
+            when '++'
+              @addOperations [
+                op('LD', [RH_TEMPORARY_REGISTER, label])
+                op('LAD', [RH_TEMPORARY_REGISTER, 1, RH_TEMPORARY_REGISTER])
+                op('ST',  [RH_TEMPORARY_REGISTER, label])
+              ]
 
       when 'identifier'
         @addOperation op('LD', [@currentResultRegister, @findLocalVar(ast)])

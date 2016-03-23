@@ -36,6 +36,25 @@
     return binary_op_intr(left.concat(rest));
   }
 
+  function def_var(type, name, length, init_value) {
+    var node = { type: "def_var", var_type: type, name: name };
+    if(length !== null) {
+      node.length = length[1];
+    }
+    if(init_value !== null) {
+      node.init_value = init_value[2];
+    }
+    return node;
+  }
+
+  function ref_var(id, index) {
+    var node = { type: "ref_var", value: id.value };
+    if(index !== null) {
+      node.index = index[2];
+    }
+    return node;
+  }
+
   function is_array(obj) {
     return Object.prototype.toString.call(obj) == "[object Array]";
   }
@@ -84,8 +103,8 @@ def_fun
     { return { type: "def_fun", out_type:type, name: name, args: mkargs(fst_arg, rest_args), block: block }; }
 
 def_var
-  = type:type _ name:identifier _ init_value:("=" _  expression)? ";"
-    { return { type: "def_var", var_type: type, name: name, init_value: init_value && init_value[2] }; }
+  = type:type _ name:identifier _ length:("[" integer "]")? _ init_value:("=" _  expression)? ";"
+    { return def_var(type, name, length, init_value); }
 
 if_stmt
   = "if" _ "(" _ cond:expression _ ")" _ iftrue:block iffalse:(_ "else" _ block)?
@@ -141,7 +160,8 @@ factor
   / integer
   / string
   / character
-  / identifier
+  / id:identifier index:("[" expression "]")?
+    { return ref_var(id, index); }
 
 integer "integer"
   = [0-9]+

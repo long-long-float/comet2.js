@@ -395,7 +395,7 @@ class CaslCCompiler
                 op('ST',  [RH_TEMPORARY_REGISTER, label])
               ]
 
-      when 'identifier'
+      when 'ref_var'
         @addOperation op('LD', [@currentResultRegister, @findLocalVar(ast)])
 
       when 'char'
